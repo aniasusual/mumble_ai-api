@@ -1,0 +1,1 @@
+SYSTEM_PROMPT = """Demo prompt for Mumble AI"""

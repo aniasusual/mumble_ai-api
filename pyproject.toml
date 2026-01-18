@@ -1,0 +1,24 @@
+[project]
+name = "mumble-ai-api"
+version = "0.1.0"
+description = "Mumble AI API"
+authors = [
+    {name = "Animesh Dhillon",email = "d.animesh.pr@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10,<4"
+dependencies = [
+    "agno (>=2.3.26,<3.0.0)",
+    "dotenv (>=0.9.9,<0.10.0)",
+    "fastapi (>=0.128.0,<0.129.0)",
+    "motor (>=3.7.1,<4.0.0)",
+    "uvicorn (>=0.40.0,<0.41.0)",
+    "google-genai (>=1.59.0,<2.0.0)"
+]
+
+[tool.poetry]
+packages = [{include = "mumble_ai_api", from = "src"}]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
