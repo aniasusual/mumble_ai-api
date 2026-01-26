@@ -1,40 +1,85 @@
 import os
 from typing import Optional
+from agno.models.openai import OpenAIChat
 from agno.team import Team
 from .planningAgent import get_planning_agent
+from .conversationAgent import get_conversation_agent
 from agno.agent import Agent
-from agno.models.google import Gemini
 from agno.db.mongo import MongoDb
+from emergentintegrations.llm.utils import get_integration_proxy_url
+
 
 from ..prompts.mainAgent import SYSTEM_PROMPT
 
 
 def get_main_agent(
-    model_id: str = "gemini-2.0-flash",
-    debug_mode: bool = False,
-    access_token: Optional[str] = None,
-) -> Agent:
+    model_id: str = "gpt-4.1-mini",
+    native_language: str = None,
+) -> Team:
+    """
+    Create main language learning coach team.
 
-    # Initialize MongoDB connection - happens after .env is loaded
+    Args:
+        model_id: LLM model ID (e.g., "gpt-4.1-mini", "gpt-4o", "gemini-2.0-flash")
+        native_language: Learner's native language (e.g., "Hindi", "English")
+
+    Returns:
+        Team: Main agent coordinating specialized language learning agents
+    """
+
     db_url = os.getenv("MONGODB_URL")
     if not db_url:
         raise ValueError("MONGODB_URL environment variable is not set")
 
     db = MongoDb(db_url=db_url)
 
-    
+    emergent_api_key = os.getenv("EMERGENT_LLM_KEY")
+    if not emergent_api_key:
+        raise ValueError("EMERGENT_LLM_KEY environment variable is not set")
 
-    planning_agent = get_planning_agent()
+    emergent_proxy_url = get_integration_proxy_url()
+    llm_base_url = f"{emergent_proxy_url}/llm"
+    native_lang = native_language or "User's native language (to be determined)"
+
+    planning_agent = get_planning_agent(
+        model_id=model_id,
+        native_language=native_language,
+    )
+
+    conversation_agent = get_conversation_agent(
+        model_id=model_id,
+        native_language=native_language,
+    )
 
     return Team(
-        name="Mumble AI Main Agent",
-        instructions=SYSTEM_PROMPT,  # Add instructions to guide team behavior
-        members=[planning_agent],
-        model=Gemini(id=model_id),
+        id="mumble-ai-coach",
+        name="Language Learning Coach",
+        role="Professional language tutor who delivers personalized, human-like language learning experiences",
+        description=f"Interactive language coach for {native_lang} speakers learning new languages through conversation-based assessment and practice.",
+        system_message=SYSTEM_PROMPT,
+        instructions=[
+            f"Learner's native language: {native_lang}",
+            "First interaction: Ask what language they want to learn",
+            "Assess proficiency level through natural conversation",
+            f"Always communicate in {native_lang} except during target language practice",
+            "Gather complete profile (target language, level, goals) before delegating to Planning Agent",
+            "Delegate curriculum design to Planning Agent with full context (native lang, target lang, level, goals)",
+            "When learner needs speaking practice, delegate to Conversation Agent with context (target lang, level, scenario)",
+            "After delegated agent completes, they return summary - use it to continue guiding learner",
+            "Track progress and adapt learning path based on performance",
+            "Provide clear, encouraging feedback like a human tutor would",
+        ],
+        members=[planning_agent, conversation_agent],
+        model=OpenAIChat(
+            id=model_id,
+            api_key=emergent_api_key,
+            base_url=llm_base_url,
+        ),
+        markdown=True,
         add_history_to_context=True,
+        num_history_runs=10,
+        add_datetime_to_context=True,
         db=db,
-        enable_user_memories=True,
-        enable_agentic_memory=True,
-        # Note: enable_user_memories and enable_agentic_memory are NOT supported on Team
-        # They should be configured on individual member agents instead
+        add_team_history_to_members=True,
+        num_team_history_runs=10,
     )
