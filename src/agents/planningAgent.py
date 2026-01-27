@@ -41,10 +41,13 @@ def get_planning_agent(
     llm_base_url = f"{emergent_proxy_url}/llm"
     native_lang = native_language or "User's native language"
 
+    print("lode ki native language: ",native_lang)
+
     return Agent(
         id="planning-agent",
-        name="Curriculum Designer",
-        role=f"Curriculum specialist creating personalized learning paths for {native_lang} speakers",
+        name="Curriculum Planning Agent",
+        debug_mode=True,
+        role=f"Expert curriculum designer who creates personalized language learning plans for {native_lang} speakers learning new languages",
         model=OpenAIChat(
             id=model_id,
             api_key=emergent_api_key,
@@ -52,7 +55,7 @@ def get_planning_agent(
         ),
         tools=[],
         markdown=True,
-        description=PLANNING_AGENT_PROMPT,
+        description=f"Specializes in creating comprehensive, personalized language curricula. Delegate to this agent when you need to design a learning plan or curriculum. Provide: native language, target language, proficiency level, and learning goals.\n\n{PLANNING_AGENT_PROMPT}",
         instructions=[
             f"Learner's native language: {native_lang}",
             "Target language provided by Main Agent during delegation",

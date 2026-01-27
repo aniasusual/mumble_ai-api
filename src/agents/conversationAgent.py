@@ -65,11 +65,11 @@ def get_conversation_agent(
 
     return Agent(
         id="conversation-agent",
-        name="Conversation Practice Coach",
-        role="Interactive conversation practice partner for language learners",
+        name="Conversation Practice Agent",
+        role="Expert conversation partner for immersive language practice sessions with real-time feedback",
         model=model,
         instructions=instructions,
-        description=CONVERSATION_AGENT_PROMPT,
+        description=f"Specializes in interactive conversation practice with learners. Delegate to this agent when learner wants to practice speaking and conversation. Provide: target language, proficiency level, and conversation topic/scenario.\n\n{CONVERSATION_AGENT_PROMPT}",
         tools=[],
         markdown=True,
         add_history_to_context=True,
