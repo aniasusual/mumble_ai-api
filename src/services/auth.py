@@ -28,6 +28,7 @@ class AuthService:
             "name": user_data.name,
             "password_hash": hash_password(user_data.password),
             "avatar_url": None,
+            "base_language": user_data.base_language or "English",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
@@ -44,6 +45,7 @@ class AuthService:
                 email=user_data.email,
                 name=user_data.name,
                 avatar_url=None,
+                base_language=user_data.base_language or "English",
                 created_at=datetime.now(timezone.utc)
             )
         )
@@ -68,6 +70,7 @@ class AuthService:
                 email=user["email"],
                 name=user["name"],
                 avatar_url=user.get("avatar_url"),
+                base_language=user.get("base_language", "English"),
                 created_at=created_at
             )
         )
@@ -83,6 +86,7 @@ class AuthService:
             email=user["email"],
             name=user["name"],
             avatar_url=user.get("avatar_url"),
+            base_language=user.get("base_language", "English"),
             created_at=created_at
         )
 
@@ -93,6 +97,8 @@ class AuthService:
             update_dict["name"] = update_data.name
         if update_data.avatar_url is not None:
             update_dict["avatar_url"] = update_data.avatar_url
+        if update_data.base_language is not None:
+            update_dict["base_language"] = update_data.base_language
 
         if update_dict:
             update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -108,5 +114,6 @@ class AuthService:
             email=updated_user["email"],
             name=updated_user["name"],
             avatar_url=updated_user.get("avatar_url"),
+            base_language=updated_user.get("base_language", "English"),
             created_at=created_at
         )

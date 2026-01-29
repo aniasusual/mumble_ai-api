@@ -13,10 +13,10 @@ class SessionService:
         self.db = db
 
     async def get_user_sessions(self, user_id: str) -> List[LearningSession]:
-        """Get all sessions for a user."""
+        """Get all sessions for a user. Excludes chat_history for performance."""
         sessions = await self.db.sessions.find(
             {"user_id": user_id},
-            {"_id": 0}
+            {"_id": 0, "chat_history": 0}  # Exclude chat_history from list view
         ).sort("created_at", -1).to_list(100)
 
         for session in sessions:

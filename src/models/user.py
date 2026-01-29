@@ -8,6 +8,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
     name: str = Field(min_length=1)
+    base_language: Optional[str] = "English"
 
 
 class UserLogin(BaseModel):
@@ -24,6 +25,7 @@ class UserResponse(BaseModel):
     email: str
     name: str
     avatar_url: Optional[str] = None
+    base_language: Optional[str] = "English"
     created_at: datetime
 
 
@@ -38,3 +40,4 @@ class UserUpdate(BaseModel):
     """User update model."""
     name: Optional[str] = None
     avatar_url: Optional[str] = None
+    base_language: Optional[str] = None
