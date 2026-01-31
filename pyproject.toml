@@ -13,12 +13,27 @@ dependencies = [
     "fastapi (>=0.128.0,<0.129.0)",
     "motor (>=3.7.1,<4.0.0)",
     "uvicorn (>=0.40.0,<0.41.0)",
-    "google-genai (>=1.59.0,<2.0.0)"
+    "google-genai (>=1.59.0,<2.0.0)",
+    "emergentintegrations (>=0.1.0,<0.2.0)",
+    "pydantic-settings (>=2.0.0,<3.0.0)",
+    "passlib[bcrypt] (>=1.7.4,<2.0.0)",
+    "pyjwt (>=2.8.0,<3.0.0)",
+    "email-validator (>=2.0.0,<3.0.0)"
 ]
 
 [tool.poetry]
 packages = [{include = "src"}]
 
+
+[[tool.poetry.source]]
+name = "emergent"
+url = "https://d33sy5i8bnduwe.cloudfront.net/simple/"
+priority = "explicit"
+
+
+
+[tool.poetry.dependencies]
+emergentintegrations = {source = "emergent"}
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

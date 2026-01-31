@@ -21,13 +21,15 @@ class DatabaseManager:
     async def connect(self) -> None:
         """Establish connection to MongoDB."""
         mongodb_url = os.getenv("MONGODB_URL")
+
+        # print(f"MONGODB_URL: {mongodb_url}")
         if not mongodb_url:
             raise ValueError("MONGODB_URL environment variable is not set")
 
         database_name = os.getenv("MONGODB_DATABASE", "mumble_ai")
 
         logger.info("Connecting to MongoDB...")
-        print(f"Connecting to MongoDB: {mongodb_url}")
+        # print(f"Connecting to MongoDB: {mongodb_url}")
 
         self.client = AsyncIOMotorClient(
             mongodb_url,
