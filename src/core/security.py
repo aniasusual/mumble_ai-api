@@ -25,12 +25,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(preprocessed, hashed_password.encode('utf-8'))
 
 
-def create_access_token(user_id: str, session_id: Optional[str] = None) -> str:
+def create_access_token(user_id: str, job_id: Optional[str] = None) -> str:
     """Create a JWT access token for a user.
 
     Args:
         user_id: User's unique identifier
-        session_id: Optional session identifier for tracking user sessions
+        job_id: Optional job identifier for tracking user jobs
 
     Returns:
         Encoded JWT token string
@@ -43,9 +43,9 @@ def create_access_token(user_id: str, session_id: Optional[str] = None) -> str:
         "aud": "mumble-ai",  # Audience - should match AgentOS id
     }
 
-    # Add session_id if provided
-    if session_id:
-        payload["session_id"] = session_id
+    # Add job_id if provided
+    if job_id:
+        payload["job_id"] = job_id
 
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 

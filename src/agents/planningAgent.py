@@ -7,11 +7,6 @@ from agno.db.mongo import MongoDb
 from emergentintegrations.llm.utils import get_integration_proxy_url
 
 from ..prompts.planningAgent import PLANNING_AGENT_PROMPT
-from .tools import (
-    get_user_learning_profile,
-    get_session_context,
-    save_learning_progress,
-)
 
 
 def get_planning_agent(
@@ -58,19 +53,11 @@ def get_planning_agent(
             base_url=llm_base_url,
         ),
         add_dependencies_to_context=True,  # Adds dependencies to user message
-        tools=[
-            get_user_learning_profile,
-            get_session_context,
-            save_learning_progress,
-        ],
         markdown=True,
         description=f"Specializes in creating comprehensive, personalized language curricula. Delegate to this agent when you need to design a learning plan or curriculum. Provide: native language, target language, proficiency level, and learning goals.\n\n{PLANNING_AGENT_PROMPT}",
         instructions=[
             "Check <additional context> for 'base_language' - respond in that language",
             "Target language provided by Main Agent during delegation",
-            "Use get_user_learning_profile to understand user's learning style and preferences",
-            "Use get_session_context to see what topics were covered previously",
-            "Use save_learning_progress when curriculum milestones are completed",
             "Apply contrastive analysis to identify language-specific challenges",
             "Prioritize concepts absent in native language (e.g., articles, tones, cases)",
             "Design pronunciation drills for non-native sounds",
@@ -82,7 +69,7 @@ def get_planning_agent(
         add_history_to_context=True,
         num_history_runs=5,
         db=db,
-        enable_user_memories=True,
-        enable_agentic_memory=True,
+        enable_user_memories=True,  # Automatic memory management
+        add_memories_to_context=True,  # Inject user memories into context
         add_datetime_to_context=True,
     )

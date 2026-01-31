@@ -3,75 +3,75 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from fastapi import HTTPException
 from typing import List
 
-from ..models import LearningSession, SessionCreate, SessionUpdate
+from ..models import Job, JobCreate, JobUpdate
 
 
-class SessionService:
-    """Service for managing learning sessions."""
+class JobService:
+    """Service for managing jobs."""
 
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
 
-    async def get_user_sessions(self, user_id: str) -> List[LearningSession]:
-        """Get all sessions for a user. Excludes chat_history for performance."""
-        sessions = await self.db.sessions.find(
+    async def get_user_jobs(self, user_id: str) -> List[Job]:
+        """Get all jobs for a user. Excludes chat_history for performance."""
+        jobs = await self.db.jobs.find(
             {"user_id": user_id},
             {"_id": 0, "chat_history": 0}  # Exclude chat_history from list view
         ).sort("created_at", -1).to_list(100)
 
-        for session in sessions:
-            if isinstance(session.get("created_at"), str):
-                session["created_at"] = datetime.fromisoformat(session["created_at"])
-            if isinstance(session.get("updated_at"), str):
-                session["updated_at"] = datetime.fromisoformat(session["updated_at"])
+        for job in jobs:
+            if isinstance(job.get("created_at"), str):
+                job["created_at"] = datetime.fromisoformat(job["created_at"])
+            if isinstance(job.get("updated_at"), str):
+                job["updated_at"] = datetime.fromisoformat(job["updated_at"])
 
-        return sessions
+        return jobs
 
-    async def create_session(self, user_id: str, session_data: SessionCreate) -> LearningSession:
-        """Create a new learning session."""
-        session = LearningSession(
+    async def create_job(self, user_id: str, job_data: JobCreate) -> Job:
+        """Create a new job."""
+        job = Job(
             user_id=user_id,
-            title=session_data.title,
-            notes=session_data.notes
+            title=job_data.title,
+            notes=job_data.notes
         )
 
-        doc = session.model_dump()
+        doc = job.model_dump()
         doc["created_at"] = doc["created_at"].isoformat()
         doc["updated_at"] = doc["updated_at"].isoformat()
 
-        await self.db.sessions.insert_one(doc)
-        return session
+        await self.db.jobs.insert_one(doc)
+        return job
 
-    async def get_session(self, session_id: str, user_id: str) -> LearningSession:
-        """Get a specific session."""
-        session = await self.db.sessions.find_one(
-            {"id": session_id, "user_id": user_id},
+    async def get_job(self, job_id: str, user_id: str) -> Job:
+        """Get a specific job."""
+        job = await self.db.jobs.find_one(
+            {"id": job_id, "user_id": user_id},
             {"_id": 0}
         )
 
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
 
-        if isinstance(session.get("created_at"), str):
-            session["created_at"] = datetime.fromisoformat(session["created_at"])
-        if isinstance(session.get("updated_at"), str):
-            session["updated_at"] = datetime.fromisoformat(session["updated_at"])
+        if isinstance(job.get("created_at"), str):
+            job["created_at"] = datetime.fromisoformat(job["created_at"])
+        if isinstance(job.get("updated_at"), str):
+            job["updated_at"] = datetime.fromisoformat(job["updated_at"])
 
-        return session
+        return job
 
-    async def update_session(
+    async def update_job(
         self,
-        session_id: str,
+        job_id: str,
         user_id: str,
-        update_data: SessionUpdate
-    ) -> LearningSession:
-        """Update a session."""
-        session = await self.db.sessions.find_one(
-            {"id": session_id, "user_id": user_id}
+        update_data: JobUpdate
+    ) -> Job:
+        """Update a job."""
+        job = await self.db.jobs.find_one(
+            {"id": job_id, "user_id": user_id}
         )
 
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
 
         update_dict = {}
         if update_data.title is not None:
@@ -82,12 +82,14 @@ class SessionService:
             update_dict["notes"] = update_data.notes
         if update_data.chat_history is not None:
             update_dict["chat_history"] = update_data.chat_history
+        if update_data.agent_job_id is not None:
+            update_dict["agent_job_id"] = update_data.agent_job_id
 
         if update_dict:
             update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
-            await self.db.sessions.update_one({"id": session_id}, {"$set": update_dict})
+            await self.db.jobs.update_one({"id": job_id}, {"$set": update_dict})
 
-        updated = await self.db.sessions.find_one({"id": session_id}, {"_id": 0})
+        updated = await self.db.jobs.find_one({"id": job_id}, {"_id": 0})
 
         if isinstance(updated.get("created_at"), str):
             updated["created_at"] = datetime.fromisoformat(updated["created_at"])
@@ -96,13 +98,13 @@ class SessionService:
 
         return updated
 
-    async def delete_session(self, session_id: str, user_id: str) -> dict:
-        """Delete a session."""
-        result = await self.db.sessions.delete_one(
-            {"id": session_id, "user_id": user_id}
+    async def delete_job(self, job_id: str, user_id: str) -> dict:
+        """Delete a job."""
+        result = await self.db.jobs.delete_one(
+            {"id": job_id, "user_id": user_id}
         )
 
         if result.deleted_count == 0:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise HTTPException(status_code=404, detail="Job not found")
 
-        return {"message": "Session deleted"}
+        return {"message": "Job deleted"}

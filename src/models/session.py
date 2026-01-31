@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 import uuid
 
 
-class LearningSession(BaseModel):
-    """Learning session model."""
+class Job(BaseModel):
+    """Job model."""
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -16,19 +16,19 @@ class LearningSession(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     notes: Optional[str] = None
     chat_history: Optional[List[dict]] = None
-    agent_session_id: Optional[str] = None  # AgentOS session ID for continuity
+    agent_job_id: Optional[str] = None  # AgentOS session ID (job identifier)
 
 
-class SessionCreate(BaseModel):
-    """Session creation model."""
+class JobCreate(BaseModel):
+    """Job creation model."""
     title: Optional[str] = None
     notes: Optional[str] = None
 
 
-class SessionUpdate(BaseModel):
-    """Session update model."""
+class JobUpdate(BaseModel):
+    """Job update model."""
     title: Optional[str] = None
     status: Optional[str] = None
     notes: Optional[str] = None
     chat_history: Optional[List[dict]] = None
-    agent_session_id: Optional[str] = None
+    agent_job_id: Optional[str] = None

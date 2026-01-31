@@ -7,7 +7,7 @@ from ..models import ChatRequest
 from ..agents.miaAgent import get_mia_agent
 
 
-# Store Mia agent instances per session (in production, use Redis)
+# Store Mia agent instances per job (in production, use Redis)
 # NOTE: Mia is SEPARATE from the main team agents - used only for landing page chat
 mia_agents_tts: Dict[str, object] = {}
 
@@ -45,16 +45,16 @@ class TTSService:
     async def chat_with_voice(self, request: ChatRequest) -> dict:
         """Chat with Mia (landing page agent) and get voice response."""
         try:
-            session_id = request.session_id
+            job_id = request.job_id
 
-            # Create Mia agent if not exists for this session
-            if session_id not in mia_agents_tts:
-                mia_agents_tts[session_id] = get_mia_agent()
+            # Create Mia agent if not exists for this job
+            if job_id not in mia_agents_tts:
+                mia_agents_tts[job_id] = get_mia_agent()
 
-            mia = mia_agents_tts[session_id]
+            mia = mia_agents_tts[job_id]
 
             # Run agent with the user message
-            response = await mia.arun(request.message, session_id=session_id)
+            response = await mia.arun(request.message, session_id=job_id)
             text_response = response.content if hasattr(response, 'content') else str(response)
 
             # Generate audio from response
@@ -71,7 +71,7 @@ class TTSService:
             return {
                 "response": text_response,
                 "audio": audio_base64,
-                "session_id": session_id
+                "job_id": job_id
             }
         except Exception as e:
             self.logger.error(f"Chat voice error: {str(e)}")

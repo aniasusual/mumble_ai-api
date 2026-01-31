@@ -9,15 +9,11 @@ from agno.db.mongo import MongoDb
 from emergentintegrations.llm.utils import get_integration_proxy_url
 
 from ..prompts.mainAgent import SYSTEM_PROMPT
-from .tools import (
-    get_user_learning_profile,
-    get_session_context,
-    save_learning_progress,
-)
+from .tools import get_user_session_context, get_current_user_id, get_current_job_id
 
 
 def get_main_agent(
-    model_id: str = "gpt-4.1-mini",
+    model_id: str = "gpt-4.1-mini"
 ) -> Team:
     """
     Create main language learning coach team.
@@ -53,10 +49,12 @@ def get_main_agent(
 
     return Team(
         id="mumble-ai-coach",
+        db=db,
         name="Language Learning Coach",
         role="Professional language tutor who delivers personalized, human-like language learning experiences",
         description="Interactive language coach helping learners master new languages.",
         add_dependencies_to_context=True,  # Adds dependencies to user message
+        add_memories_to_context=True,  # Inject user memories into context
         system_message=SYSTEM_PROMPT,
         instructions=[
             "CRITICAL: Check the <additional context> section in the user message for 'base_language' field",
@@ -66,9 +64,7 @@ def get_main_agent(
             "Always communicate in the learner's native language (base_language) except during target language practice",
             "Gather complete profile (target language, level, goals) before delegating to Planning Agent",
             "Use get_member_information tool to see available team members and their capabilities",
-            "Use get_user_learning_profile to access user's learning preferences and goals",
-            "Use get_session_context to understand current learning session",
-            "Use save_learning_progress to track user's achievements and completed lessons",
+            "Use get_user_session_context tool to get current user and session information when needed",
             "Delegate curriculum design to Planning Agent with full context (native lang, target lang, level, goals)",
             "When learner needs speaking practice, delegate to Conversation Agent with context (target lang, level, scenario)",
             "After delegated agent completes, review their response and synthesize it into your guidance",
@@ -76,22 +72,18 @@ def get_main_agent(
             "Provide clear, encouraging feedback like a human tutor would",
         ],
         members=[planning_agent, conversation_agent],
-        tools=[
-            get_user_learning_profile,
-            get_session_context,
-            save_learning_progress,
-        ],
+        # tools=[get_user_session_context, get_current_user_id, get_current_job_id],
         model=OpenAIChat(
             id=model_id,
             api_key=emergent_api_key,
             base_url=llm_base_url,
         ),
+        enable_agentic_memory=True,
         markdown=True,
         debug_mode=True,
         add_history_to_context=True,
         num_history_runs=10,
         add_datetime_to_context=True,
-        db=db,
         add_team_history_to_members=True,
         num_team_history_runs=10,
         show_members_responses=True,

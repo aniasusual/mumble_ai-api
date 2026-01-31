@@ -1,18 +1,23 @@
 """
-Tools for accessing user and session context in agents.
+Agent tools directory.
 
-These tools demonstrate how to access user_id and session_id
-from the RunContext provided by AgentOS JWT middleware.
+Note: Custom user context tools are not needed. Agno automatically handles:
+- User memories: enable_user_memories=True on agents
+- Session history: Automatically saved when db is configured
+- User context: user_id from JWT, job_id from run session_id
+
+All agents in this application use Agno's built-in memory and session management.
+No custom tools are required for basic user context operations.
 """
 
-from .user_context import (
-    get_user_learning_profile,
-    get_session_context,
-    save_learning_progress,
+from .user_session_context import (
+    get_user_session_context,
+    get_current_user_id,
+    get_current_job_id,
 )
 
 __all__ = [
-    "get_user_learning_profile",
-    "get_session_context",
-    "save_learning_progress",
+    "get_user_session_context",
+    "get_current_user_id",
+    "get_current_job_id",
 ]

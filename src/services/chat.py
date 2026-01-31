@@ -5,7 +5,7 @@ from ..models import ChatRequest, ChatResponse
 from ..agents.miaAgent import get_mia_agent
 
 
-# Store Mia agent instances per session (in production, use Redis)
+# Store Mia agent instances per job (in production, use Redis)
 # NOTE: Mia is SEPARATE from the main team agents - used only for landing page chat
 mia_agents: Dict[str, object] = {}
 
@@ -19,20 +19,20 @@ class ChatService:
     async def chat(self, request: ChatRequest) -> ChatResponse:
         """Send a chat message to Mia (landing page agent) and get response."""
         try:
-            session_id = request.session_id
+            job_id = request.job_id
 
-            # Create Mia agent if not exists for this session
-            if session_id not in mia_agents:
-                mia_agents[session_id] = get_mia_agent()
+            # Create Mia agent if not exists for this job
+            if job_id not in mia_agents:
+                mia_agents[job_id] = get_mia_agent()
 
-            mia = mia_agents[session_id]
+            mia = mia_agents[job_id]
 
             # Run agent with the user message
-            response = await mia.arun(request.message, session_id=session_id)
+            response = await mia.arun(request.message, session_id=job_id)
 
             return ChatResponse(
                 response=response.content if hasattr(response, 'content') else str(response),
-                session_id=session_id
+                job_id=job_id
             )
         except Exception as e:
             self.logger.error(f"Chat error: {str(e)}")

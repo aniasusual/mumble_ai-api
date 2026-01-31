@@ -14,11 +14,6 @@ from agno.db.mongo import MongoDb
 from emergentintegrations.llm.utils import get_integration_proxy_url
 
 from ..prompts.conversationAgent import CONVERSATION_AGENT_PROMPT
-from .tools import (
-    get_user_learning_profile,
-    get_session_context,
-    save_learning_progress,
-)
 
 
 def get_conversation_agent(
@@ -53,9 +48,6 @@ def get_conversation_agent(
     instructions = [
         "Check <additional context> for 'base_language' - respond in that language",
         "Target language and proficiency level provided by Main Agent during delegation",
-        "Use get_user_learning_profile to understand learner's conversation preferences",
-        "Use get_session_context to see previous conversation topics and progress",
-        "Use save_learning_progress after completing conversation practice sessions",
         "Give all instructions and feedback in the learner's native language (base_language from context)",
         "Prompt learner to respond in target language",
         "Adjust complexity based on provided proficiency level",
@@ -79,17 +71,12 @@ def get_conversation_agent(
         add_dependencies_to_context=True,  # Adds dependencies to user message
         instructions=instructions,
         description=f"Specializes in interactive conversation practice with learners. Delegate to this agent when learner wants to practice speaking and conversation. Provide: target language, proficiency level, and conversation topic/scenario.\n\n{CONVERSATION_AGENT_PROMPT}",
-        tools=[
-            get_user_learning_profile,
-            get_session_context,
-            save_learning_progress,
-        ],
         markdown=True,
         add_history_to_context=True,
         num_history_runs=10,
         db=db,
-        enable_user_memories=True,
-        enable_agentic_memory=True,
+        enable_user_memories=True,  # Automatic memory management
+        add_memories_to_context=True,  # Inject user memories into context
         add_datetime_to_context=True,
     )
 

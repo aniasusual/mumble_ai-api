@@ -56,7 +56,7 @@ app.add_middleware(
 #     allow_headers=["*"],
 # )
 
-# JWT middleware for AgentOS - Automatically injects user_id and session_id from JWT tokens
+# JWT middleware for AgentOS - Injects user_id from JWT tokens
 # IMPORTANT: Must be added BEFORE AgentOS initialization
 # NOTE: JWT Middleware is for AgentOS routes (/teams/*, /agents/*, etc.)
 #       Custom API routes (/api/*) use FastAPI Depends(get_current_user) instead
@@ -65,7 +65,6 @@ app.add_middleware(
     verification_keys=[settings.JWT_SECRET],
     algorithm=settings.JWT_ALGORITHM,
     user_id_claim="sub",  # Extract user_id from 'sub' claim in JWT
-    session_id_claim="session_id",  # Extract session_id from custom claim
     validate=True,  # Enable token validation
     verify_audience=True,  # Verify audience matches AgentOS ID
     token_source=TokenSource.HEADER,  # Extract from Authorization header
