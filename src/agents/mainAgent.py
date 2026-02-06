@@ -44,8 +44,8 @@ def get_main_agent(
     llm_base_url = f"{emergent_proxy_url}/llm"
 
     # Agents will use {base_language} template variable from runtime dependencies
-    planning_agent = get_planning_agent(model_id=model_id)
-    conversation_agent = get_conversation_agent(model_id=model_id)
+    planning_agent = get_planning_agent()
+    conversation_agent = get_conversation_agent()
 
     return Team(
         id="mumble-ai-coach",
@@ -64,9 +64,13 @@ def get_main_agent(
             "Always communicate in the learner's native language (base_language) except during target language practice",
             "Gather complete profile (target language, level, goals) before delegating to Planning Agent",
             "Use get_member_information tool to see available team members and their capabilities",
-            "Use get_user_session_context tool to get current user and session information when needed",
             "Delegate curriculum design to Planning Agent with full context (native lang, target lang, level, goals)",
-            "When learner needs speaking practice, delegate to Conversation Agent with context (target lang, level, scenario)",
+            
+            # Conversation practice trigger
+            "When the learner is ready for conversation practice, say exactly: 'Let's practice conversation!' followed by the topic/scenario",
+            "Use phrases like 'free conversation', 'practice speaking', or 'let's talk' to trigger the conversation practice UI",
+            "Before starting conversation practice, briefly explain what the learner will practice and the scenario",
+            
             "After delegated agent completes, review their response and synthesize it into your guidance",
             "Track progress and adapt learning path based on performance",
             "Provide clear, encouraging feedback like a human tutor would",
@@ -90,5 +94,7 @@ def get_main_agent(
         get_member_information_tool=True,
         add_member_tools_to_context=True,
         share_member_interactions=True,
-        store_member_responses=True
+        store_member_responses=True,
+        respond_directly=True,
+
     )

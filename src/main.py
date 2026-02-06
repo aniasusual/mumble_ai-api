@@ -10,6 +10,7 @@ from agno.os.middleware import JWTMiddleware
 from agno.os.middleware.jwt import TokenSource
 
 from .agents.mainAgent import get_main_agent
+from .agents.conversationAgent import get_conversation_agent, get_conversation_realtime_router
 from .api import api_router
 from .core import settings, db_manager
 
@@ -44,34 +45,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=[
-#         "https://ui-facelift-16.preview.emergentagent.com",
-#         "http://localhost:3000",
-#         "https://*.preview.emergentagent.com",  # Allow all preview domains
-#     ],
-#     allow_credentials=True,
-#     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-#     allow_headers=["*"],
-# )
 
-# JWT middleware for AgentOS - Injects user_id from JWT tokens
-# IMPORTANT: Must be added BEFORE AgentOS initialization
-# NOTE: JWT Middleware is for AgentOS routes (/teams/*, /agents/*, etc.)
-#       Custom API routes (/api/*) use FastAPI Depends(get_current_user) instead
 app.add_middleware(
     JWTMiddleware,
     verification_keys=[settings.JWT_SECRET],
     algorithm=settings.JWT_ALGORITHM,
-    user_id_claim="sub",  # Extract user_id from 'sub' claim in JWT
-    validate=True,  # Enable token validation
-    verify_audience=True,  # Verify audience matches AgentOS ID
-    token_source=TokenSource.HEADER,  # Extract from Authorization header
+    user_id_claim="sub", 
+    validate=True,  
+    verify_audience=True, 
+    token_source=TokenSource.HEADER,  
     excluded_route_paths=[
-        "/health",        # Health check endpoint
-        "/api/*",         # All custom API routes (use FastAPI dependencies)
-        "/docs",          # OpenAPI docs
+        "/health",       
+        "/api/*",         
+        "/docs",
         "/openapi.json"
     ],
 )
@@ -79,20 +65,30 @@ app.add_middleware(
 # Include API routes
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
+# Realtime WebRTC endpoints (prefer EMERGENT_LLM_KEY proxy, fallback to OPENAI_API_KEY)
+if settings.EMERGENT_LLM_KEY or settings.OPENAI_API_KEY:
+    app.include_router(get_conversation_realtime_router(), prefix=settings.API_V1_PREFIX)
+else:
+    print("EMERGENT_LLM_KEY/OPENAI_API_KEY not set; realtime routes are disabled.")
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "mumble-ai-api"}
 
-# Initialize Main Agent Team
-# Note: {base_language} template variable in team instructions will be replaced
-# at runtime with the value from dependencies parameter (passed from frontend)
 main_team = get_main_agent()
 
-# Initialize AgentOS
+# Conversation agent for direct user interaction
+# This allows users to talk directly to the conversation agent
+# when the main agent triggers conversation practice mode
+# Note: The same agent is also a team member in main_team
+conversation_agent = get_conversation_agent()
+
+# Initialize AgentOS with both team and standalone agents
 agent_os = AgentOS(
     id="mumble-ai",
     teams=[main_team],
+    agents=[conversation_agent],  # Register for direct access at /agents/conversation-agent/runs
     base_app=app,
     lifespan=lifespan,
 )

@@ -15,9 +15,11 @@ from .user_session_context import (
     get_current_user_id,
     get_current_job_id,
 )
+from .realtime_session import create_realtime_session
 
 __all__ = [
     "get_user_session_context",
     "get_current_user_id",
     "get_current_job_id",
+    "create_realtime_session",
 ]

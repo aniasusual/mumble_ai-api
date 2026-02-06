@@ -3,34 +3,44 @@ Conversation Agent for voice-to-voice language practice.
 
 This agent handles real-time conversation practice with voice input/output,
 pronunciation feedback, and natural language coaching.
+
+The same agent is used for:
+1. Team membership - When main agent delegates conversation practice
+2. Direct access - When user interacts directly via /agents/conversation-agent/runs
 """
 
 import os
-from typing import Optional
 
+import aiohttp
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from agno.db.mongo import MongoDb
 from emergentintegrations.llm.utils import get_integration_proxy_url
+from emergentintegrations.llm.openai import OpenAIChatRealtime
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from ..prompts.conversationAgent import CONVERSATION_AGENT_PROMPT
+from .tools import create_realtime_session
 
 
 def get_conversation_agent(
     model_id: str = "gpt-4.1-mini",
+    realtime_model_id: str = "gpt-4o-realtime-preview-2024-12-17",
+    realtime_voice: str = "verse",
 ) -> Agent:
     """
     Create conversation practice agent.
 
+    This agent serves dual purposes:
+    1. As a team member (main agent delegates to it)
+    2. As a standalone agent (user talks directly via AgentOS endpoint)
+
     Args:
-        model_id: LLM model ID
+        model_id: LLM model ID with audio capabilities
 
     Returns:
-        Agent: Conversation practice agent (receives target language and level from Main Agent)
-
-    Note:
-        The {base_language} template variable in instructions is automatically replaced
-        at runtime with the value from dependencies parameter (passed from team).
+        Agent: Conversation practice agent
     """
     db_url = os.getenv("MONGODB_URL")
     if not db_url:
@@ -47,14 +57,13 @@ def get_conversation_agent(
 
     instructions = [
         "Check <additional context> for 'base_language' - respond in that language",
-        "Target language and proficiency level provided by Main Agent during delegation",
         "Give all instructions and feedback in the learner's native language (base_language from context)",
         "Prompt learner to respond in target language",
         "Adjust complexity based on provided proficiency level",
-        "Create realistic conversation scenarios",
-        "Provide constructive corrections with explanations",
-        "Session length: 10-15 exchanges",
-        "When complete, summarize and return control to Main Agent",
+        "You do not conduct the conversation yourself. You only create realtime sessions.",
+        "ALWAYS call the create_realtime_session tool exactly once per request.",
+        f"Call create_realtime_session with model_id='{realtime_model_id}' and voice='{realtime_voice}'.",
+        "Return only the tool result as JSON with no extra text.",
     ]
 
     model = OpenAIChat(
@@ -66,17 +75,123 @@ def get_conversation_agent(
     return Agent(
         id="conversation-agent",
         name="Conversation Practice Agent",
-        role="Expert conversation partner for immersive language practice sessions with real-time feedback",
+        role="Real-time voice conversation partner for immersive language practice",
         model=model,
-        add_dependencies_to_context=True,  # Adds dependencies to user message
+        add_dependencies_to_context=True,
         instructions=instructions,
+        system_message=CONVERSATION_AGENT_PROMPT,
         description=f"Specializes in interactive conversation practice with learners. Delegate to this agent when learner wants to practice speaking and conversation. Provide: target language, proficiency level, and conversation topic/scenario.\n\n{CONVERSATION_AGENT_PROMPT}",
         markdown=True,
         add_history_to_context=True,
-        num_history_runs=10,
+        num_history_runs=20,
         db=db,
-        enable_user_memories=True,  # Automatic memory management
-        add_memories_to_context=True,  # Inject user memories into context
+        enable_user_memories=True,
+        add_memories_to_context=True,
         add_datetime_to_context=True,
+        tools=[create_realtime_session],
     )
 
+
+def get_conversation_realtime_router(
+    model_id: str = "gpt-4o-realtime-preview-2024-12-17",
+    voice: str = "verse",
+) -> APIRouter:
+    """
+    Create a FastAPI router that exposes OpenAI Realtime session + negotiate endpoints.
+
+    This is separate from the Agno agent and is intended for WebRTC audio chat.
+    """
+    router = APIRouter()
+
+    emergent_api_key = os.getenv("EMERGENT_LLM_KEY")
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+
+    emergent_proxy_url = get_integration_proxy_url().rstrip("/")
+    realtime_base_url = f"{emergent_proxy_url}/llm/realtime"
+
+    async def _proxy_create_session():
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{realtime_base_url}/sessions",
+                headers={
+                    "Authorization": f"Bearer {emergent_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={"model": model_id, "voice": voice},
+            ) as response:
+                return response.status, await response.json()
+
+    async def _proxy_negotiate(sdp_offer: bytes):
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{realtime_base_url}?model={model_id}",
+                headers={
+                    "Authorization": f"Bearer {emergent_api_key}",
+                    "Content-Type": "application/sdp",
+                },
+                data=sdp_offer,
+            ) as response:
+                return response.status, await response.text()
+
+    async def _openai_create_session():
+        openai_realtime = OpenAIChatRealtime(api_key=openai_api_key)
+        session = await openai_realtime.create_ephemeral_session_for_audio_chat(
+            voice=voice,
+            model=model_id,
+        )
+        return session
+
+    async def _openai_negotiate(sdp_offer: str):
+        openai_realtime = OpenAIChatRealtime(api_key=openai_api_key)
+        return await openai_realtime.negotiate_connection(
+            sdp_offer,
+            model=model_id,
+        )
+
+    @router.post("/realtime/session")
+    async def create_session():
+        try:
+            if emergent_api_key:
+                status, payload = await _proxy_create_session()
+                if status == 200:
+                    return JSONResponse(content=payload)
+                if openai_api_key:
+                    session = await _openai_create_session()
+                    return JSONResponse(content=session)
+                raise HTTPException(status_code=502, detail=payload)
+
+            if not openai_api_key:
+                raise HTTPException(status_code=500, detail="Neither EMERGENT_LLM_KEY nor OPENAI_API_KEY is set")
+
+            session = await _openai_create_session()
+            return JSONResponse(content=session)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.post("/realtime/negotiate")
+    async def negotiate_connection(request: Request):
+        try:
+            sdp_offer = await request.body()
+
+            if emergent_api_key:
+                status, sdp_answer = await _proxy_negotiate(sdp_offer)
+                if status == 200 and sdp_answer.strip().startswith("v="):
+                    return JSONResponse(content={"sdp": sdp_answer})
+                if openai_api_key:
+                    sdp_answer = await _openai_negotiate(sdp_offer.decode())
+                    return JSONResponse(content={"sdp": sdp_answer})
+                raise HTTPException(status_code=502, detail=sdp_answer)
+
+            if not openai_api_key:
+                raise HTTPException(status_code=500, detail="Neither EMERGENT_LLM_KEY nor OPENAI_API_KEY is set")
+
+            sdp_answer = await _openai_negotiate(sdp_offer.decode())
+            return JSONResponse(content={"sdp": sdp_answer})
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    return router
