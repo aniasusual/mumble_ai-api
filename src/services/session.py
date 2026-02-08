@@ -82,6 +82,8 @@ class JobService:
             update_dict["notes"] = update_data.notes
         if update_data.chat_history is not None:
             update_dict["chat_history"] = update_data.chat_history
+        if update_data.chat_events is not None:
+            update_dict["chat_events"] = update_data.chat_events
         if update_data.agent_job_id is not None:
             update_dict["agent_job_id"] = update_data.agent_job_id
 

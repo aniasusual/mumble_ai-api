@@ -3,7 +3,6 @@ import os
 from typing import Any, Dict, Optional
 
 import aiohttp
-from emergentintegrations.llm.utils import get_integration_proxy_url
 
 
 async def create_realtime_session(
@@ -11,41 +10,50 @@ async def create_realtime_session(
     voice: str = "verse",
 ) -> Dict[str, Any]:
     """
-    Create an ephemeral OpenAI Realtime session.
-
-    Prefers Emergent proxy when EMERGENT_LLM_KEY is set.
-    Falls back to OpenAI direct when OPENAI_API_KEY is set.
+    Create an ephemeral OpenAI Realtime session using OPENAI_API_KEY only.
     """
-    emergent_api_key = os.getenv("EMERGENT_LLM_KEY")
     openai_api_key = os.getenv("OPENAI_API_KEY")
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is not set")
 
-    if emergent_api_key:
-        proxy_url = get_integration_proxy_url().rstrip("/")
-        realtime_base_url = f"{proxy_url}/llm/realtime"
-        headers = {
-            "Authorization": f"Bearer {emergent_api_key}",
-            "Content-Type": "application/json",
-        }
-        url = f"{realtime_base_url}/sessions"
-    else:
-        if not openai_api_key:
-            raise ValueError("Neither EMERGENT_LLM_KEY nor OPENAI_API_KEY is set")
-        headers = {
-            "Authorization": f"Bearer {openai_api_key}",
-            "Content-Type": "application/json",
-        }
-        url = "https://api.openai.com/v1/realtime/sessions"
+    # Guard against incorrect model_id from LLM tool calls
+    if not model_id or "realtime" not in model_id:
+        model_id = "gpt-4o-realtime-preview-2024-12-17"
 
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            url,
-            headers=headers,
+            "https://api.openai.com/v1/realtime/sessions",
+            headers={
+                "Authorization": f"Bearer {openai_api_key}",
+                "Content-Type": "application/json",
+            },
             json={"model": model_id, "voice": voice},
         ) as response:
             payload = await response.json()
 
     return {
-        "provider": "emergent" if emergent_api_key else "openai",
+        "provider": "openai",
+        "model": model_id,
+        "voice": voice,
+        "session": payload,
+    }
+
+    if not openai_api_key:
+        raise ValueError("Neither EMERGENT_LLM_KEY nor OPENAI_API_KEY is set")
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "https://api.openai.com/v1/realtime/sessions",
+            headers={
+                "Authorization": f"Bearer {openai_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={"model": model_id, "voice": voice},
+        ) as response:
+            payload = await response.json()
+
+    return {
+        "provider": "openai",
         "model": model_id,
         "voice": voice,
         "session": payload,

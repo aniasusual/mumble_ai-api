@@ -11,12 +11,10 @@ The same agent is used for:
 
 import os
 
-import aiohttp
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-from agno.db.mongo import MongoDb
-from emergentintegrations.llm.utils import get_integration_proxy_url
 from emergentintegrations.llm.openai import OpenAIChatRealtime
+from agno.db.mongo import MongoDb
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -48,12 +46,9 @@ def get_conversation_agent(
 
     db = MongoDb(db_url=db_url)
 
-    emergent_api_key = os.getenv("EMERGENT_LLM_KEY")
-    if not emergent_api_key:
-        raise ValueError("EMERGENT_LLM_KEY environment variable is not set")
-
-    emergent_proxy_url = get_integration_proxy_url()
-    llm_base_url = f"{emergent_proxy_url}/llm"
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is not set")
 
     instructions = [
         "Check <additional context> for 'base_language' - respond in that language",
@@ -68,8 +63,7 @@ def get_conversation_agent(
 
     model = OpenAIChat(
         id=model_id,
-        api_key=emergent_api_key,
-        base_url=llm_base_url,
+        api_key=openai_api_key,
     )
 
     return Agent(
@@ -101,72 +95,21 @@ def get_conversation_realtime_router(
 
     This is separate from the Agno agent and is intended for WebRTC audio chat.
     """
-    router = APIRouter()
-
-    emergent_api_key = os.getenv("EMERGENT_LLM_KEY")
     openai_api_key = os.getenv("OPENAI_API_KEY")
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is not set")
 
-    emergent_proxy_url = get_integration_proxy_url().rstrip("/")
-    realtime_base_url = f"{emergent_proxy_url}/llm/realtime"
-
-    async def _proxy_create_session():
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{realtime_base_url}/sessions",
-                headers={
-                    "Authorization": f"Bearer {emergent_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={"model": model_id, "voice": voice},
-            ) as response:
-                return response.status, await response.json()
-
-    async def _proxy_negotiate(sdp_offer: bytes):
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{realtime_base_url}?model={model_id}",
-                headers={
-                    "Authorization": f"Bearer {emergent_api_key}",
-                    "Content-Type": "application/sdp",
-                },
-                data=sdp_offer,
-            ) as response:
-                return response.status, await response.text()
-
-    async def _openai_create_session():
-        openai_realtime = OpenAIChatRealtime(api_key=openai_api_key)
-        session = await openai_realtime.create_ephemeral_session_for_audio_chat(
-            voice=voice,
-            model=model_id,
-        )
-        return session
-
-    async def _openai_negotiate(sdp_offer: str):
-        openai_realtime = OpenAIChatRealtime(api_key=openai_api_key)
-        return await openai_realtime.negotiate_connection(
-            sdp_offer,
-            model=model_id,
-        )
+    router = APIRouter()
+    openai_realtime = OpenAIChatRealtime(api_key=openai_api_key)
 
     @router.post("/realtime/session")
     async def create_session():
         try:
-            if emergent_api_key:
-                status, payload = await _proxy_create_session()
-                if status == 200:
-                    return JSONResponse(content=payload)
-                if openai_api_key:
-                    session = await _openai_create_session()
-                    return JSONResponse(content=session)
-                raise HTTPException(status_code=502, detail=payload)
-
-            if not openai_api_key:
-                raise HTTPException(status_code=500, detail="Neither EMERGENT_LLM_KEY nor OPENAI_API_KEY is set")
-
-            session = await _openai_create_session()
+            session = await openai_realtime.create_ephemeral_session_for_audio_chat(
+                voice=voice,
+                model=model_id,
+            )
             return JSONResponse(content=session)
-        except HTTPException:
-            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -174,23 +117,11 @@ def get_conversation_realtime_router(
     async def negotiate_connection(request: Request):
         try:
             sdp_offer = await request.body()
-
-            if emergent_api_key:
-                status, sdp_answer = await _proxy_negotiate(sdp_offer)
-                if status == 200 and sdp_answer.strip().startswith("v="):
-                    return JSONResponse(content={"sdp": sdp_answer})
-                if openai_api_key:
-                    sdp_answer = await _openai_negotiate(sdp_offer.decode())
-                    return JSONResponse(content={"sdp": sdp_answer})
-                raise HTTPException(status_code=502, detail=sdp_answer)
-
-            if not openai_api_key:
-                raise HTTPException(status_code=500, detail="Neither EMERGENT_LLM_KEY nor OPENAI_API_KEY is set")
-
-            sdp_answer = await _openai_negotiate(sdp_offer.decode())
+            sdp_answer = await openai_realtime.negotiate_connection(
+                sdp_offer.decode(),
+                model=model_id,
+            )
             return JSONResponse(content={"sdp": sdp_answer})
-        except HTTPException:
-            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 

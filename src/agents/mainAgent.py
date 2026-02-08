@@ -90,11 +90,14 @@ def get_main_agent(
         add_datetime_to_context=True,
         add_team_history_to_members=True,
         num_team_history_runs=10,
-        show_members_responses=True,
+        # Keep subagent outputs out of the main chat stream (only team leader synthesis shown)
+        show_members_responses=False,
         get_member_information_tool=True,
         add_member_tools_to_context=True,
         share_member_interactions=True,
         store_member_responses=True,
-        respond_directly=True,
+        stream_events=True,
+        stream_member_events=True,
+        respond_directly=False,
 
     )

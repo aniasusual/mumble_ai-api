@@ -10,6 +10,7 @@ from agno.os.middleware import JWTMiddleware
 from agno.os.middleware.jwt import TokenSource
 
 from .agents.mainAgent import get_main_agent
+from .agents.planningAgent import get_planning_agent
 from .agents.conversationAgent import get_conversation_agent, get_conversation_realtime_router
 from .api import api_router
 from .core import settings, db_manager
@@ -83,12 +84,16 @@ main_team = get_main_agent()
 # when the main agent triggers conversation practice mode
 # Note: The same agent is also a team member in main_team
 conversation_agent = get_conversation_agent()
+planning_agent = get_planning_agent()
 
 # Initialize AgentOS with both team and standalone agents
 agent_os = AgentOS(
     id="mumble-ai",
     teams=[main_team],
-    agents=[conversation_agent],  # Register for direct access at /agents/conversation-agent/runs
+    agents=[
+        conversation_agent,
+        planning_agent,
+    ],
     base_app=app,
     lifespan=lifespan,
 )

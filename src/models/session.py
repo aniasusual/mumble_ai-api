@@ -16,6 +16,7 @@ class Job(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     notes: Optional[str] = None
     chat_history: Optional[List[dict]] = None
+    chat_events: Optional[List[dict]] = None
     agent_job_id: Optional[str] = None  # AgentOS session ID (job identifier)
 
 
@@ -31,4 +32,5 @@ class JobUpdate(BaseModel):
     status: Optional[str] = None
     notes: Optional[str] = None
     chat_history: Optional[List[dict]] = None
+    chat_events: Optional[List[dict]] = None
     agent_job_id: Optional[str] = None
